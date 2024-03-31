@@ -16,26 +16,7 @@ function GameBoard() {
         board[row][col].setValue(player);
     };
 
-    const printBoard = () => {
-        for (let row in board) {
-            let str = '';
-            for (let col in board[row]) {
-                str += board[row][col].getValue() + ' ';
-            }
-            console.log(str);
-        }
-    };
-
-    const resetBoard = () => {
-        for (let i = 0; i < rows; i++) {
-            board[i] = [];
-            for (let j = 0; j < cols; j++) {
-                board[i][j] = Cell();
-            }
-        }
-    }
-
-    return {getBoard, markSpot, resetBoard, printBoard};
+    return {getBoard, markSpot};
 }
 
 function Cell() {
@@ -51,6 +32,7 @@ function Cell() {
 
 function Spaces() {
     const board = GameBoard().getBoard();
+
     const available = [];
     for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[i].length; j++) {
@@ -61,10 +43,13 @@ function Spaces() {
     }
 
     const numSpaces = () => available.length;
+
     const open = (row, col) => {
         return available.includes(`${row} + ${col}`);
     };
+
     const getAvailSpaces = () => available;
+
     const removeSpace = (row, col) => {
         let idx = available.indexOf(`${row} + ${col}`);
         return available.splice(idx, 1);
@@ -89,14 +74,18 @@ function GameController(playerOne = 'Player One', playerTwo = 'Player Two') {
 
         const getRow = (row) => rows[row];
         const incrRow = (row) => rows[row]++;
+
         const getCol = (col) => cols[col];
         const incrCol = (col) => cols[col]++;
+
         const incrPosDiag = () => positiveDiagonal++;
         const incrNegDiag = () => negativeDiagonal++;
+
         const getPosDiag = () => positiveDiagonal;
         const getNegDiag = () => negativeDiagonal;
 
-        return {getRow, getCol, getPosDiag, getNegDiag, incrRow, incrCol, incrPosDiag, incrNegDiag};
+        return {getRow, getCol, getPosDiag, getNegDiag, incrRow, incrCol, 
+            incrPosDiag, incrNegDiag};
     }
 
     let currPlayer = players[0];
@@ -105,26 +94,7 @@ function GameController(playerOne = 'Player One', playerTwo = 'Player Two') {
         return currPlayer = currPlayer === players[0] ? players[1] : players[0];
     };
 
-    const newRound = () => {
-        board.printBoard();
-        console.log(`${getCurrPlayer().name}'s turn....`);
-    };
-
     const playRound = (row, col) => {
-        console.log(availSpaces);
-        if (row < 0 || col < 0 || row >= 3 || col >= 3) {
-            console.log('Invalid input');
-            return;
-        } else if (availSpaces.numSpaces() === 0) {
-            console.log('Start a new game.');
-            return;
-        } else if (!availSpaces.open(row, col)) {
-            console.log('Pick a different spot.');
-            return;
-        }
-
-        console.log(`Marking a spot for ${getCurrPlayer().name}...`);
-
         board.markSpot(row, col, currPlayer.marker);
 
         availSpaces.removeSpace(row, col);
@@ -133,9 +103,6 @@ function GameController(playerOne = 'Player One', playerTwo = 'Player Two') {
 
         if (row + col === 2) currPlayer.markedSpots.incrPosDiag();
         if (row - col === 0) currPlayer.markedSpots.incrNegDiag();
-        
-        
-        board.printBoard();
 
         const won = () => {
             return currPlayer.markedSpots.getNegDiag() === 3 || 
@@ -145,38 +112,30 @@ function GameController(playerOne = 'Player One', playerTwo = 'Player Two') {
         };
 
         if (won()) {
-            console.log(`${currPlayer.name} won! Game Over.`);
-            // start a new game
-            return;
+            return `${currPlayer.name} won! Game Over.`;
         } else if (availSpaces.numSpaces() === 0) {
-            console.log('Game ended in a tie.');
-            // start a new game
-            return;
+            return 'Game ended in a tie.';
         } else {
             switchPlayer();
-            newRound();
+            return '';
         }
     };
 
-    newRound();
-
-    return {playRound, getCurrPlayer, getBoard: board.getBoard()};
+    return {playRound, getCurrPlayer, getBoard: board};
 }
 
-// button for each grid cell
-// disable the button if its taken
-// add listener for the board
 function ScreenController() {
     const game = GameController();
     const playerDiv = document.querySelector('.turn');
     const boardDiv = document.querySelector('.board');
+    const restart = document.querySelector('.restart');
 
-    const updateScreen = () => {
-        const board = game.getBoard;
+    const updateScreen = (msg, gameEnded) => {
+        const board = game.getBoard.getBoard();
         const player = game.getCurrPlayer().name;
 
         boardDiv.textContent = '';
-        playerDiv.textContent = `${player}'s turn....`;
+        playerDiv.textContent = gameEnded ? msg : '';
 
         for (let i = 0; i < board.length; i++) {
             for (let j = 0; j < board[i].length; j++) {
@@ -186,6 +145,8 @@ function ScreenController() {
                 btn.dataset.column = j;
 
                 btn.textContent = board[i][j].getValue();
+
+                if (btn.textContent !== '' || gameEnded) btn.disabled = true;
                 boardDiv.appendChild(btn);
             }
         }
@@ -194,8 +155,15 @@ function ScreenController() {
     boardDiv.addEventListener('click', (e) => {
         let row = parseInt(e.target.dataset.row);
         let col = parseInt(e.target.dataset.column);
-        game.playRound(row, col);
-        updateScreen();
+
+        let msg = game.playRound(row, col);
+        let gameOver = msg.includes('tie') || msg.includes('won');
+
+        updateScreen(msg !== '' ? msg : '', gameOver);
+    });
+
+    restart.addEventListener('click', () => {
+        location.reload();
     });
 
     updateScreen();
